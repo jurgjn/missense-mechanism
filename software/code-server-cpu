@@ -1,0 +1,18 @@
+#!/bin/sh
+read -r JOBID STATUS NODE <<<$(ssh euler.ethz.ch 'squeue --me --name=code-server-cpu --noheader --format="%A %T %R"')
+echo $JOBID $STATUS $NODE
+if [ -z "${NODE}" ];
+then
+    echo "Starting code-server job"
+    ssh euler.ethz.ch 'sbatch af2genomics/software/code-server-cpu.sbatch'
+    ssh euler.ethz.ch 'my_squeue'
+elif [ "${STATUS}" != "RUNNING" ];
+then
+    echo "Waiting for code-server job to start:"
+    ssh euler.ethz.ch 'my_squeue'
+else
+    echo "Starting tunnel to $NODE; passphrase:"
+    ssh euler.ethz.ch 'cat .config/code-server/config.yaml'
+    trap "echo 'Cancelling job $JOBID'; ssh euler.ethz.ch 'scancel $JOBID'" SIGINT
+    ssh euler.ethz.ch -N -L 59123:$NODE.euler.ethz.ch:8898
+fi
